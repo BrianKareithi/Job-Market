@@ -6,6 +6,7 @@ module jobMarket::jobMarket {
     use std::string::{Self, String}; // Import std string module
     use sui::coin::{Self, Coin}; // Import sui coin module
     use sui::balance::{Self, Balance}; // Import sui balance module
+    use sui::table_vec::{Self, TableVec};
 
     // Define error codes
     const Error_Not_Admin: u64 = 1; // Error code for not an admin
@@ -22,7 +23,7 @@ module jobMarket::jobMarket {
     public struct Marketplace has key {
         id: UID, // Unique ID for the marketplace
         balance: Balance<SUI>, // Balance of SUI in the marketplace
-        jobs: vector<Job>, // Vector of jobs in the marketplace
+        jobs: TableVec<Job>, // Vector of jobs in the marketplace
         job_count: u64 // Count of jobs in the marketplace
     }
 
@@ -115,7 +116,7 @@ module jobMarket::jobMarket {
         transfer::share_object(Marketplace {
             id: marketplace_uid, // Set the marketplace UID
             balance: balance::zero<SUI>(), // Initialize the balance to zero
-            jobs: vector::empty(), // Initialize the jobs vector to empty
+            jobs: table_vec::empty(ctx), // Initialize the jobs vector to empty
             job_count: 0, // Initialize the job count to zero
         });
 
@@ -298,7 +299,7 @@ module jobMarket::jobMarket {
         // Check if the available quantity is at least 1
         if (job.available >= 1) {
             // Relist the job
-            vector::borrow_mut(&mut marketplace.jobs, accepted_job.job_id).listed = true;
+            table_vec::borrow_mut(&mut marketplace.jobs, accepted_job.job_id).listed = true;
         }
     }
 
@@ -328,12 +329,11 @@ module jobMarket::jobMarket {
             recipient: recipient // Set the recipient address
         });
     }
-    
+
     // Getter function for marketplace details
-    public fun get_marketplace_details(marketplace: &Marketplace) : (&Balance<SUI>, &vector<Job>, u64) {
+    public fun get_marketplace_details(marketplace: &Marketplace) : (&Balance<SUI>, u64) {
         (
             &marketplace.balance, // Return the marketplace balance
-            &marketplace.jobs, // Return the jobs vector
             marketplace.job_count // Return the job count
         )
     }
