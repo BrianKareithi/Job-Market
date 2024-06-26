@@ -21,7 +21,6 @@ module jobMarket::jobMarket {
     // Define Marketplace struct with key ability
     public struct Marketplace has key {
         id: UID, // Unique ID for the marketplace
-        admin_cap: ID, // Admin capability ID
         balance: Balance<SUI>, // Balance of SUI in the marketplace
         jobs: vector<Job>, // Vector of jobs in the marketplace
         job_count: u64 // Count of jobs in the marketplace
@@ -115,7 +114,6 @@ module jobMarket::jobMarket {
         // Share the marketplace object
         transfer::share_object(Marketplace {
             id: marketplace_uid, // Set the marketplace UID
-            admin_cap: admin_cap_id, // Set the admin capability ID
             balance: balance::zero<SUI>(), // Initialize the balance to zero
             jobs: vector::empty(), // Initialize the jobs vector to empty
             job_count: 0, // Initialize the job count to zero
@@ -140,7 +138,7 @@ module jobMarket::jobMarket {
         category: u8 // Category of the job
     ) {
         // Check if the caller is an admin
-        assert!(marketplace.admin_cap == object::uid_to_inner(&admin_cap.id), Error_Not_Admin);
+        assert!(admin_cap.marketplace == object::uid_to_inner(&marketplace.id), Error_Not_Admin);
         // Check if the price is valid
         assert!(price > 0, Error_Invalid_Price);
         // Check if the supply is valid
@@ -181,7 +179,7 @@ module jobMarket::jobMarket {
         job_id: u64 // ID of the job to be unlisted
     ) {
         // Check if the caller is an admin
-        assert!(marketplace.admin_cap == object::uid_to_inner(&admin_cap.id), Error_Not_Admin);
+        assert!(admin_cap.marketplace == object::uid_to_inner(&marketplace.id), Error_Not_Admin);
         // Check if the job ID is valid
         assert!(job_id <= marketplace.jobs.length(), Error_Invalid_JobId);
 
@@ -313,7 +311,7 @@ module jobMarket::jobMarket {
         ctx: &mut TxContext // Transaction context
     ) {
         // Check if the caller is an admin
-        assert!(marketplace.admin_cap == object::uid_to_inner(&admin_cap.id), Error_Not_Admin);
+        assert!(admin_cap.marketplace == object::uid_to_inner(&marketplace.id), Error_Not_Admin);
         // Check if the withdrawal amount is valid
         assert!(amount > 0 && amount <= marketplace.balance.value(), Error_Invalid_WithdrawalAmount);
 
@@ -339,7 +337,7 @@ module jobMarket::jobMarket {
         ctx: &mut TxContext // Transaction context
     ) {
         // Check if the caller is an admin
-        assert!(marketplace.admin_cap == object::uid_to_inner(&admin_cap.id), Error_Not_Admin);
+        assert!(admin_cap.marketplace == object::uid_to_inner(&marketplace.id), Error_Not_Admin);
         // Get the balance value
         let amount = marketplace.balance.value();
         // Take the coin from the balance
@@ -357,10 +355,8 @@ module jobMarket::jobMarket {
     }
 
     // Getter function for marketplace details
-    public fun get_marketplace_details(marketplace: &Marketplace) : (&UID, ID, &Balance<SUI>, &vector<Job>, u64) {
+    public fun get_marketplace_details(marketplace: &Marketplace) : (&Balance<SUI>, &vector<Job>, u64) {
         (
-            &marketplace.id, // Return the marketplace UID
-            marketplace.admin_cap, // Return the admin capability ID
             &marketplace.balance, // Return the marketplace balance
             &marketplace.jobs, // Return the jobs vector
             marketplace.job_count // Return the job count
