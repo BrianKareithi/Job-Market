@@ -266,6 +266,20 @@ module jobMarket::jobMarket {
         job.completed = true;
     }
 
+    public fun provision(
+        marketplace: &mut Marketplace, // Mutable reference to the marketplace
+        admin_cap: &AdminCapability, // Reference to the admin capability
+        job_id: u64, // ID of the job to be unlisted
+        ctx: &mut TxContext
+    ) {
+        assert!(admin_cap.marketplace == object::uid_to_inner(&marketplace.id), Error_Not_Admin);
+        let job = marketplace.jobs.swap_remove(job_id);
+        // it should be true 
+        assert!(job.completed, Error_Insufficient_Payment);
+        let coin_ = coin::take(&mut marketplace.balance, job.total_supply, ctx);
+        transfer::public_transfer(coin_, *job.owner.borrow());
+    }
+
     // Function to withdraw from the marketplace balance
     public fun withdraw_from_marketplace(
         marketplace: &mut Marketplace, // Mutable reference to the marketplace
