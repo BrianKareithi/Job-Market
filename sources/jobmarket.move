@@ -34,7 +34,7 @@ module jobMarket::jobMarket {
     }
 
     // Define Job struct with store ability
-    public struct Job has store {
+    public struct Job has copy, drop, store {
         id: u64, // Job ID
         title: String, // Title of the job
         description: String, // Description of the job
@@ -190,14 +190,11 @@ module jobMarket::jobMarket {
     ) {
         // Check if the caller is an admin
         assert!(admin_cap.marketplace == object::uid_to_inner(&marketplace.id), Error_Not_Admin);
-        // Check if the job ID is valid
-        assert!(job_id <= marketplace.jobs.length(), Error_Invalid_JobId);
-
+    
         // Get the job by ID
-        let job = &mut marketplace.jobs[job_id];
-        // Unlist the job
-        job.listed = false;
-
+        let _job = marketplace.jobs.swap_remove(job_id);
+        marketplace.job_count = marketplace.job_count - 1;
+    
         // Emit the JobUnlisted event
         event::emit(JobUnlisted {
             marketplace_id: object::uid_to_inner(&marketplace.id), // Set the marketplace ID
@@ -229,8 +226,6 @@ module jobMarket::jobMarket {
         marketplace: &mut Marketplace, // Mutable reference to the marketplace
         job_id: u64, // ID of the job to be accepted
         quantity: u64, // Quantity of jobs to be accepted
-        freelancer: address, // Address of the freelancer accepting the job
-        payment_coin: &mut Coin<SUI>, // Payment coin for the job
         ctx: &mut TxContext // Transaction context
     ) {
         // Check if the job ID is valid
@@ -242,26 +237,10 @@ module jobMarket::jobMarket {
         let job = &mut marketplace.jobs[job_id];
         // Check if the available quantity is sufficient
         assert!(job.available >= quantity, Error_Invalid_Quantity);
-
-        // Get the value of the payment coin
-        let value = payment_coin.value();
-        // Calculate the total price
-        let total_price = job.price * quantity;
-        // Check if the payment is sufficient
-        assert!(value >= total_price, Error_Insufficient_Payment);
-
         // Check if the job is listed
         assert!(job.listed == true, Error_JobIsNotListed);
-
         // Update the available quantity
         job.available = job.available - quantity;
-
-        // Split the payment coin
-        let paid = payment_coin.split(total_price, ctx);
-
-        // Add the payment to the marketplace balance
-        coin::put(&mut marketplace.balance, paid);
-
         // Initialize a counter
         let mut i = 0_u64;
 
@@ -275,7 +254,7 @@ module jobMarket::jobMarket {
                 id: accepted_job_uid, // Set the accepted job UID
                 marketplace_id: object::uid_to_inner(&marketplace.id), // Set the marketplace ID
                 job_id: job_id // Set the job ID
-            }, freelancer);
+            }, ctx.sender());
 
             // Increment the counter
             i = i + 1;
@@ -286,7 +265,7 @@ module jobMarket::jobMarket {
             marketplace_id: object::uid_to_inner(&marketplace.id), // Set the marketplace ID
             job_id: job_id, // Set the job ID
             quantity: quantity, // Set the quantity
-            freelancer: freelancer, // Set the freelancer address
+            freelancer: ctx.sender(), // Set the freelancer address
         });
 
         if (job.available == 0) {
@@ -354,6 +333,13 @@ module jobMarket::jobMarket {
             amount: amount, // Set the withdrawal amount
             recipient: recipient // Set the recipient address
         });
+    }
+
+    public fun deposit_to_marketplace(
+        marketplace: &mut Marketplace, // Mutable reference to the marketplace
+        coin_: Coin<SUI>,
+    ) {
+        marketplace.balance.join(coin::into_balance(coin_));
     }
 
     // Getter function for marketplace details

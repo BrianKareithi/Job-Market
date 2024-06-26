@@ -28,7 +28,7 @@ module jobMarket::water_cooler_test {
         {
             job::create_marketplace(ts::ctx(scenario));
         };
-
+        // list an job 
         next_tx(scenario, TEST_ADDRESS1);
         {
             let mut marketplace = ts::take_shared<Marketplace>(scenario);
@@ -53,6 +53,26 @@ module jobMarket::water_cooler_test {
 
             assert_eq(job::get_marketplace_count(&marketplace), 1);
             assert_eq(job::get_marketplace_table_count(&marketplace), 1);
+
+            ts::return_shared(marketplace);
+            ts::return_to_sender(scenario, cap);
+        };
+        // unlist an job 
+        next_tx(scenario, TEST_ADDRESS1);
+        {
+            let mut marketplace = ts::take_shared<Marketplace>(scenario);
+            let cap = ts::take_from_sender<AdminCapability>(scenario);
+            let id: u64 = 0;
+
+            job::unlist_job(
+                &mut marketplace,
+                &cap,
+                id,
+             
+            );
+
+            assert_eq(job::get_marketplace_count(&marketplace), 0);
+            assert_eq(job::get_marketplace_table_count(&marketplace), 0);
 
             ts::return_shared(marketplace);
             ts::return_to_sender(scenario, cap);
