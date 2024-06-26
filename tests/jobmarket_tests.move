@@ -11,7 +11,7 @@ module jobMarket::water_cooler_test {
     use std::string::{Self, String};
 
     use jobMarket::helpers::{Self, init_test_helper};
-    use jobMarket::jobMarket::{Self as job, Marketplace, AdminCapability, Job, AcceptedJob};
+    use jobMarket::jobMarket::{Self as job, Marketplace, AdminCapability, Job};
 
     const ADMIN: address = @0xA;
     const TEST_ADDRESS1: address = @0xB;
@@ -48,7 +48,8 @@ module jobMarket::water_cooler_test {
                 url,
                 price,
                 supply,
-                category
+                category,
+                ts::ctx(scenario)
             );
 
             assert_eq(job::get_marketplace_count(&marketplace), 1);
