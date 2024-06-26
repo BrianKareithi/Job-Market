@@ -5,7 +5,6 @@ module jobmarket::jobmarket {
     use sui::url::{Self, Url}; // Import sui url module
     use std::string::{Self, String}; // Import std string module
     use sui::coin::{Self, Coin}; // Import sui coin module
-    // use sui::object::{Self, UID}; // Import sui object module (commented out)
     use sui::balance::{Self, Balance}; // Import sui balance module
 
     // Define error codes
