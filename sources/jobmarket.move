@@ -328,32 +328,7 @@ module jobMarket::jobMarket {
             recipient: recipient // Set the recipient address
         });
     }
-
-    // Function to withdraw all balance from the marketplace
-    public fun withdraw_all_from_marketplace(
-        marketplace: &mut Marketplace, // Mutable reference to the marketplace
-        admin_cap: &AdminCapability, // Reference to the admin capability
-        recipient: address, // Address of the recipient
-        ctx: &mut TxContext // Transaction context
-    ) {
-        // Check if the caller is an admin
-        assert!(admin_cap.marketplace == object::uid_to_inner(&marketplace.id), Error_Not_Admin);
-        // Get the balance value
-        let amount = marketplace.balance.value();
-        // Take the coin from the balance
-        let take_coin = coin::take(&mut marketplace.balance, amount, ctx);
-
-        // Transfer the coin to the recipient
-        transfer::public_transfer(take_coin, recipient);
-
-        // Emit the MarketplaceWithdrawal event
-        event::emit(MarketplaceWithdrawal {
-            marketplace_id: object::uid_to_inner(&marketplace.id), // Set the marketplace ID
-            amount: amount, // Set the withdrawal amount
-            recipient: recipient // Set the recipient address
-        });
-    }
-
+    
     // Getter function for marketplace details
     public fun get_marketplace_details(marketplace: &Marketplace) : (&Balance<SUI>, &vector<Job>, u64) {
         (
