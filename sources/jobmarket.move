@@ -39,6 +39,7 @@ module jobMarket::jobMarket {
         id: u64, // Job ID
         owner: Option<address>,
         completed: bool,
+        taken: bool,
         title: String, // Title of the job
         description: String, // Description of the job
         price: u64, // Price of the job
@@ -65,7 +66,6 @@ module jobMarket::jobMarket {
     public struct JobAccepted has copy, drop {
         marketplace_id: ID, // Marketplace ID
         job_id: u64, // Job ID
-        quantity: u64, // Quantity of jobs accepted
         freelancer: address, // Freelancer address
     }
 
@@ -159,6 +159,7 @@ module jobMarket::jobMarket {
             id: job_id, // Set the job ID
             owner: option::none(),
             completed: false,
+            taken: false,
             title: string::utf8(title), // Set the job title
             description: string::utf8(description), // Set the job description
             price: price, // Set the job price
@@ -222,20 +223,16 @@ module jobMarket::jobMarket {
     public fun accept_job(
         marketplace: &mut Marketplace, // Mutable reference to the marketplace
         job_id: u64, // ID of the job to be accepted
-        quantity: u64, // Quantity of jobs to be accepted
         ctx: &mut TxContext // Transaction context
     ) {
         // Check if the job ID is valid
         assert!(job_id <= marketplace.jobs.length(), Error_Invalid_JobId);
-        // Check if the quantity is valid
-        assert!(quantity > 0, Error_Invalid_Quantity);
-
         // Get the job by ID
         let job = &mut marketplace.jobs[job_id];
+        assert!(!job.taken, Error_Invalid_JobId);
+        job.taken = true;
         // set the owner of job
         option::fill(&mut job.owner, ctx.sender());
-        // Check if the available quantity is sufficient
-        assert!(job.available >= quantity, Error_Invalid_Quantity);
         // Check if the job is listed
         assert!(job.listed == true, Error_JobIsNotListed);
         // Update the available quantity
@@ -244,7 +241,6 @@ module jobMarket::jobMarket {
         event::emit(JobAccepted {
             marketplace_id: object::uid_to_inner(&marketplace.id), // Set the marketplace ID
             job_id: job_id, // Set the job ID
-            quantity: quantity, // Set the quantity
             freelancer: ctx.sender(), // Set the freelancer address
         });
 
