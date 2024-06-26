@@ -196,10 +196,28 @@ module jobMarket::jobMarket {
         });
     }
 
+    fun unlist(
+        marketplace: &mut Marketplace, // Mutable reference to the marketplace
+        job_id: u64 // ID of the job to be unlisted
+    ) {
+        // Check if the job ID is valid
+        assert!(job_id <= marketplace.jobs.length(), Error_Invalid_JobId);
+
+        // Get the job by ID
+        let job = &mut marketplace.jobs[job_id];
+        // Unlist the job
+        job.listed = false;
+
+        // Emit the JobUnlisted event
+        event::emit(JobUnlisted {
+            marketplace_id: object::uid_to_inner(&marketplace.id), // Set the marketplace ID
+            job_id: job_id // Set the job ID
+        });
+    }
+
     // Function to accept a job in the marketplace
     public fun accept_job(
         marketplace: &mut Marketplace, // Mutable reference to the marketplace
-        admin_cap: &AdminCapability, // Reference to the admin capability
         job_id: u64, // ID of the job to be accepted
         quantity: u64, // Quantity of jobs to be accepted
         freelancer: address, // Address of the freelancer accepting the job
@@ -262,11 +280,10 @@ module jobMarket::jobMarket {
             freelancer: freelancer, // Set the freelancer address
         });
 
-        // Check if the available quantity is zero
         if (job.available == 0) {
             // Unlist the job
-            unlist_job(marketplace, admin_cap, job_id);
-        }
+            unlist(marketplace, job_id);
+        }    
     }
 
     // Function to complete a job in the marketplace
