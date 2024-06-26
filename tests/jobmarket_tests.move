@@ -11,7 +11,7 @@ module jobMarket::water_cooler_test {
     use std::string::{Self, String};
 
     use jobMarket::helpers::{Self, init_test_helper};
-    use jobMarket::jobMarket::{Self, Marketplace, AdminCapability, Job, AcceptedJob};
+    use jobMarket::jobMarket::{Self as job, Marketplace, AdminCapability, Job, AcceptedJob};
 
     const ADMIN: address = @0xA;
     const TEST_ADDRESS1: address = @0xB;
@@ -23,11 +23,36 @@ module jobMarket::water_cooler_test {
         let mut scenario_test = init_test_helper();
         let scenario = &mut scenario_test;
         
-        // User has to buy water_cooler from cooler_factory share object. 
+        // Create marketplace 
         next_tx(scenario, TEST_ADDRESS1);
         {
+            job::create_marketplace(ts::ctx(scenario));
+        };
 
-   
+        next_tx(scenario, TEST_ADDRESS1);
+        {
+            let mut marketplace = ts::take_shared<Marketplace>(scenario);
+            let cap = ts::take_from_sender<AdminCapability>(scenario);
+            let title = b"asdasd";
+            let description = b"asdsadsa";
+            let url = b"asdsadsa";
+            let price: u64 = 1_000_000_000;
+            let supply: u64 = 100;
+            let category: u8 = 100;
+
+            job::add_job(
+                &mut marketplace,
+                &cap,
+                title,
+                description,
+                url,
+                price,
+                supply,
+                category
+            );
+
+            ts::return_shared(marketplace);
+            ts::return_to_sender(scenario, cap);
         };
         ts::end(scenario_test);
     }

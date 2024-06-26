@@ -95,7 +95,7 @@ module jobMarket::jobMarket {
     }
 
     // Function to create a new marketplace
-    public fun create_marketplace(recipient: address, ctx: &mut TxContext) {
+    public fun create_marketplace(ctx: &mut TxContext) {
         // Create a new UID for the marketplace
         let marketplace_uid = object::new(ctx);
         // Create a new UID for the admin capability
@@ -110,7 +110,7 @@ module jobMarket::jobMarket {
         transfer::transfer(AdminCapability {
             id: admin_cap_uid, // Set the admin capability UID
             marketplace: marketplace_id // Set the marketplace ID
-         }, recipient);
+         }, ctx.sender());
 
         // Share the marketplace object
         transfer::share_object(Marketplace {
