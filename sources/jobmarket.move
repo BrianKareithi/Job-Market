@@ -94,6 +94,15 @@ module jobMarket::jobMarket {
         recipient: address // Recipient address
     }
 
+    // ## public wiew functions ## 
+
+    public fun get_marketplace_count(self: &Marketplace) : u64 {
+        self.job_count
+    }
+    public fun get_marketplace_table_count(self: &Marketplace) : u64 {
+        self.jobs.length()
+    }
+
     // Function to create a new marketplace
     public fun create_marketplace(ctx: &mut TxContext) {
         // Create a new UID for the marketplace

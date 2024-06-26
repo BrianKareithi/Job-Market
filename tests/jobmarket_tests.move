@@ -51,6 +51,9 @@ module jobMarket::water_cooler_test {
                 category
             );
 
+            assert_eq(job::get_marketplace_count(&marketplace), 1);
+            assert_eq(job::get_marketplace_table_count(&marketplace), 1);
+
             ts::return_shared(marketplace);
             ts::return_to_sender(scenario, cap);
         };
