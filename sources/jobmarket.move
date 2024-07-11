@@ -1,347 +1,347 @@
 module jobMarket::jobMarket {
 
-    use sui::event; // Import sui event module
-    use sui::sui::SUI; // Import sui module for SUI
-    use sui::url::{Self, Url}; // Import sui url module
-    use std::string::{Self, String}; // Import std string module
-    use sui::coin::{Self, Coin}; // Import sui coin module
-    use sui::balance::{Self, Balance}; // Import sui balance module
+    use sui::event;
+    use sui::sui::SUI;
+    use sui::url::{Self, Url};
+    use std::string::{Self, String};
+    use sui::coin::{Self, Coin};
+    use sui::balance::{Self, Balance};
     use sui::table_vec::{Self, TableVec};
     use std::option::{Option};
 
-    // Define error codes
-    const Error_Not_Admin: u64 = 1; // Error code for not an admin
-    const Error_Invalid_WithdrawalAmount: u64 = 2; // Error code for invalid withdrawal amount
-    const Error_Invalid_Quantity: u64 = 3; // Error code for invalid quantity
-    const Error_Insufficient_Payment: u64 = 4; // Error code for insufficient payment
-    const Error_Invalid_JobId: u64 = 5; // Error code for invalid job id
-    const Error_Invalid_Price: u64 = 6; // Error code for invalid price
-    const Error_Invalid_Supply: u64 = 7; // Error code for invalid supply
-    const Error_JobIsNotListed: u64 = 8; // Error code for job not listed
-    const Error_Not_Freelancer: u64 = 9; // Error code for not a freelancer
+    const Error_Not_Admin: u64 = 1;
+    const Error_Invalid_WithdrawalAmount: u64 = 2;
+    const Error_Invalid_Quantity: u64 = 3;
+    const Error_Insufficient_Payment: u64 = 4;
+    const Error_Invalid_JobId: u64 = 5;
+    const Error_Invalid_Price: u64 = 6;
+    const Error_Invalid_Supply: u64 = 7;
+    const Error_JobIsNotListed: u64 = 8;
+    const Error_Not_Freelancer: u64 = 9;
+    const Error_Invalid_Url: u64 = 10;
 
-    // Define Marketplace struct with key ability
     public struct Marketplace has key {
-        id: UID, // Unique ID for the marketplace
-        balance: Balance<SUI>, // Balance of SUI in the marketplace
-        jobs: TableVec<Job>, // Vector of jobs in the marketplace
-        job_count: u64 // Count of jobs in the marketplace
+        id: UID,
+        balance: Balance<SUI>,
+        jobs: TableVec<Job>,
+        job_count: u64,
+        feedbacks: TableVec<Feedback>
     }
 
-    // Define AdminCapability struct with key ability
     public struct AdminCapability has key {
-        id: UID, // Unique ID for the admin capability
-        marketplace: ID, // Marketplace ID
+        id: UID,
+        marketplace: ID,
     }
 
-    // Define Job struct with store ability
     public struct Job has copy, drop, store {
-        id: u64, // Job ID
+        id: u64,
         owner: Option<address>,
         completed: bool,
         taken: bool,
-        title: String, // Title of the job
-        description: String, // Description of the job
-        price: u64, // Price of the job
-        url: Url, // URL of the job
-        listed: bool, // Whether the job is listed
-        category: u8, // Category of the job
-        total_supply: u64, // Total supply of the job
-        available: u64 // Available quantity of the job
+        title: String,
+        description: String,
+        price: u64,
+        url: Url,
+        listed: bool,
+        category: u8,
+        total_supply: u64,
+        available: u64
     }
 
-    // Define MarketplaceCreated event struct with copy and drop abilities
+    public struct Feedback has copy, drop, store {
+        job_id: u64,
+        rating: u8,
+        comments: String
+    }
+
     public struct MarketplaceCreated has copy, drop {
-        marketplace_id: ID, // Marketplace ID
-        admin_cap_id: ID, // Admin capability ID
+        marketplace_id: ID,
+        admin_cap_id: ID,
     }
 
-    // Define JobAdded event struct with copy and drop abilities
     public struct JobAdded has copy, drop {
-        marketplace_id: ID, // Marketplace ID
-        job: u64, // Job ID
+        marketplace_id: ID,
+        job: u64,
     }
 
-    // Define JobAccepted event struct with copy and drop abilities
     public struct JobAccepted has copy, drop {
-        marketplace_id: ID, // Marketplace ID
-        job_id: u64, // Job ID
-        freelancer: address, // Freelancer address
+        marketplace_id: ID,
+        job_id: u64,
+        freelancer: address,
     }
 
-    // Define JobCompleted event struct with copy and drop abilities
     public struct JobCompleted has copy, drop {
-        marketplace_id: ID, // Marketplace ID
-        job_id: u64, // Job ID
-        quantity: u64, // Quantity of jobs completed
-        freelancer: address, // Freelancer address
+        marketplace_id: ID,
+        job_id: u64,
+        quantity: u64,
+        freelancer: address,
     }
 
-    // Define JobUnlisted event struct with copy and drop abilities
     public struct JobUnlisted has copy, drop {
-        marketplace_id: ID, // Marketplace ID
-        job_id: u64 // Job ID
+        marketplace_id: ID,
+        job_id: u64,
     }
 
-    // Define MarketplaceWithdrawal event struct with copy and drop abilities
     public struct MarketplaceWithdrawal has copy, drop {
-        marketplace_id: ID, // Marketplace ID
-        amount: u64, // Withdrawal amount
-        recipient: address // Recipient address
+        marketplace_id: ID,
+        amount: u64,
+        recipient: address,
     }
 
-    // ## public wiew functions ## 
+    public struct JobFeedbackAdded has copy, drop {
+        job_id: u64,
+        rating: u8,
+        comments: String,
+    }
 
     public fun get_marketplace_count(self: &Marketplace) : u64 {
         self.job_count
     }
+
     public fun get_marketplace_table_count(self: &Marketplace) : u64 {
         self.jobs.length()
     }
 
-    // Function to create a new marketplace
     public fun create_marketplace(ctx: &mut TxContext) {
-        // Create a new UID for the marketplace
         let marketplace_uid = object::new(ctx);
-        // Create a new UID for the admin capability
         let admin_cap_uid = object::new(ctx);
-
-        // Get the inner ID of the marketplace UID
         let marketplace_id = object::uid_to_inner(&marketplace_uid);
-        // Get the inner ID of the admin capability UID
         let admin_cap_id = object::uid_to_inner(&admin_cap_uid);
 
-        // Transfer the admin capability to the recipient
         transfer::transfer(AdminCapability {
-            id: admin_cap_uid, // Set the admin capability UID
-            marketplace: marketplace_id // Set the marketplace ID
-         }, ctx.sender());
+            id: admin_cap_uid,
+            marketplace: marketplace_id
+        }, ctx.sender());
 
-        // Share the marketplace object
         transfer::share_object(Marketplace {
-            id: marketplace_uid, // Set the marketplace UID
-            balance: balance::zero<SUI>(), // Initialize the balance to zero
-            jobs: table_vec::empty(ctx), // Initialize the jobs vector to empty
-            job_count: 0, // Initialize the job count to zero
+            id: marketplace_uid,
+            balance: balance::zero<SUI>(),
+            jobs: table_vec::empty(ctx),
+            job_count: 0,
+            feedbacks: table_vec::empty(ctx),
         });
 
-        // Emit the MarketplaceCreated event
         event::emit(MarketplaceCreated {
-           marketplace_id, // Set the marketplace ID
-           admin_cap_id // Set the admin capability ID
+            marketplace_id,
+            admin_cap_id
         })
     }
 
-    // Function to add a job to the marketplace
     public fun add_job(
-        marketplace: &mut Marketplace, // Mutable reference to the marketplace
-        admin_cap: &AdminCapability, // Reference to the admin capability
-        title: vector<u8>, // Title of the job
-        description: vector<u8>, // Description of the job
-        url: vector<u8>, // URL for the job
-        price: u64, // Price of the job
-        supply: u64, // Total supply of the job
-        category: u8, // Category of the job
+        marketplace: &mut Marketplace,
+        admin_cap: &AdminCapability,
+        title: vector<u8>,
+        description: vector<u8>,
+        url: vector<u8>,
+        price: u64,
+        supply: u64,
+        category: u8,
         ctx: &mut TxContext
     ) {
-        // Check if the caller is an admin
         assert!(admin_cap.marketplace == object::uid_to_inner(&marketplace.id), Error_Not_Admin);
-        // Check if the price is valid
         assert!(price > 0, Error_Invalid_Price);
-        // Check if the supply is valid
         assert!(supply > 0, Error_Invalid_Supply);
+        assert!(url::is_valid_url(string::utf8(url.clone())), Error_Invalid_Url);
 
-        // Get the current length of the jobs vector
         let job_id = marketplace.jobs.length();
 
-        // Create a new job
         let job = Job {
-            id: job_id, // Set the job ID
+            id: job_id,
             owner: option::none(),
             completed: false,
             taken: false,
-            title: string::utf8(title), // Set the job title
-            description: string::utf8(description), // Set the job description
-            price: price, // Set the job price
-            url: url::new_unsafe_from_bytes(url), // Set the job URL
-            listed: true, // Set the job as listed
-            category: category, // Set the job category
-            total_supply: supply, // Set the total supply of the job
-            available: supply, // Set the available quantity of the job
+            title: string::utf8(title),
+            description: string::utf8(description),
+            price: price,
+            url: url::new_unsafe_from_bytes(url),
+            listed: true,
+            category: category,
+            total_supply: supply,
+            available: supply,
         };
 
-        // Add the job to the jobs vector
         marketplace.jobs.push_back(job);
-        // Increment the job count
         marketplace.job_count = marketplace.job_count + 1;
 
-        // Emit the JobAdded event
         event::emit(JobAdded {
-            marketplace_id: admin_cap.marketplace, // Set the marketplace ID
-            job: job_id // Set the job ID
+            marketplace_id: admin_cap.marketplace,
+            job: job_id
         });
     }
 
-    // Function to unlist a job from the marketplace
     public fun unlist_job(
-        marketplace: &mut Marketplace, // Mutable reference to the marketplace
-        admin_cap: &AdminCapability, // Reference to the admin capability
-        job_id: u64 // ID of the job to be unlisted
+        marketplace: &mut Marketplace,
+        admin_cap: &AdminCapability,
+        job_id: u64
     ) {
-        // Check if the caller is an admin
         assert!(admin_cap.marketplace == object::uid_to_inner(&marketplace.id), Error_Not_Admin);
-    
-        // Get the job by ID
-        let _job = marketplace.jobs.swap_remove(job_id);
-        marketplace.job_count = marketplace.job_count - 1;
-    
-        // Emit the JobUnlisted event
-        event::emit(JobUnlisted {
-            marketplace_id: object::uid_to_inner(&marketplace.id), // Set the marketplace ID
-            job_id: job_id // Set the job ID
-        });
-    }
-
-    fun unlist(
-        marketplace: &mut Marketplace, // Mutable reference to the marketplace
-        job_id: u64 // ID of the job to be unlisted
-    ) {
-        // Check if the job ID is valid
-        assert!(job_id <= marketplace.jobs.length(), Error_Invalid_JobId);
+        assert!(job_id < marketplace.jobs.length(), Error_Invalid_JobId);
 
         let _job = marketplace.jobs.swap_remove(job_id);
         marketplace.job_count = marketplace.job_count - 1;
 
-        // Emit the JobUnlisted event
         event::emit(JobUnlisted {
-            marketplace_id: object::uid_to_inner(&marketplace.id), // Set the marketplace ID
-            job_id: job_id // Set the job ID
+            marketplace_id: object::uid_to_inner(&marketplace.id),
+            job_id: job_id
         });
     }
 
-    // Function to accept a job in the marketplace
     public fun accept_job(
-        marketplace: &mut Marketplace, // Mutable reference to the marketplace
-        job_id: u64, // ID of the job to be accepted
-        ctx: &mut TxContext // Transaction context
+        marketplace: &mut Marketplace,
+        job_id: u64,
+        ctx: &mut TxContext
     ) {
-        // Check if the job ID is valid
-        assert!(job_id <= marketplace.jobs.length(), Error_Invalid_JobId);
-        // Get the job by ID
+        assert!(job_id < marketplace.jobs.length(), Error_Invalid_JobId);
         let job = &mut marketplace.jobs[job_id];
         assert!(!job.taken, Error_Invalid_JobId);
-        job.taken = true;
-        // set the owner of job
-        option::fill(&mut job.owner, ctx.sender());
-        // Check if the job is listed
         assert!(job.listed == true, Error_JobIsNotListed);
-        // Update the available quantity
 
-        // Emit the JobAccepted event
+        job.taken = true;
+        option::fill(&mut job.owner, ctx.sender());
+
         event::emit(JobAccepted {
-            marketplace_id: object::uid_to_inner(&marketplace.id), // Set the marketplace ID
-            job_id: job_id, // Set the job ID
-            freelancer: ctx.sender(), // Set the freelancer address
+            marketplace_id: object::uid_to_inner(&marketplace.id),
+            job_id: job_id,
+            freelancer: ctx.sender(),
         });
 
-        if (job.available == 0) {
-            // Unlist the job
-            unlist(marketplace, job_id);
-        }    
+        if job.available == 0 {
+            unlist_job(marketplace, &admin_cap, job_id);
+        }
     }
 
-    // Function to complete a job in the marketplace
     public fun complete_job(
-        marketplace: &mut Marketplace, // Mutable reference to the marketplace
+        marketplace: &mut Marketplace,
         accepted_job: u64,
-        ctx: &mut TxContext // Transaction context
+        ctx: &mut TxContext
     ) {
-        // Get the job by ID
+        assert!(accepted_job < marketplace.jobs.length(), Error_Invalid_JobId);
         let job = marketplace.jobs.borrow_mut(accepted_job);
         assert!(ctx.sender() == job.owner.borrow(), Error_Invalid_JobId);
         job.completed = true;
+
+        event::emit(JobCompleted {
+            marketplace_id: object::uid_to_inner(&marketplace.id),
+            job_id: accepted_job,
+            quantity: job.total_supply - job.available,
+            freelancer: ctx.sender(),
+        });
     }
 
     public fun provision(
-        marketplace: &mut Marketplace, // Mutable reference to the marketplace
-        admin_cap: &AdminCapability, // Reference to the admin capability
-        job_id: u64, // ID of the job to be unlisted
+        marketplace: &mut Marketplace,
+        admin_cap: &AdminCapability,
+        job_id: u64,
         ctx: &mut TxContext
     ) {
         assert!(admin_cap.marketplace == object::uid_to_inner(&marketplace.id), Error_Not_Admin);
+        assert!(job_id < marketplace.jobs.length(), Error_Invalid_JobId);
+
         let job = marketplace.jobs.swap_remove(job_id);
-        // it should be true 
         assert!(job.completed, Error_Insufficient_Payment);
+
         let coin_ = coin::take(&mut marketplace.balance, job.total_supply, ctx);
         transfer::public_transfer(coin_, *job.owner.borrow());
+
+        event::emit(JobUnlisted {
+            marketplace_id: object::uid_to_inner(&marketplace.id),
+            job_id: job_id
+        });
     }
 
-    // Function to withdraw from the marketplace balance
     public fun withdraw_from_marketplace(
-        marketplace: &mut Marketplace, // Mutable reference to the marketplace
-        admin_cap: &AdminCapability, // Reference to the admin capability
-        amount: u64, // Amount to be withdrawn
-        recipient: address, // Address of the recipient
-        ctx: &mut TxContext // Transaction context
+        marketplace: &mut Marketplace,
+        admin_cap: &AdminCapability,
+        amount: u64,
+        recipient: address,
+        ctx: &mut TxContext
     ) {
-        // Check if the caller is an admin
         assert!(admin_cap.marketplace == object::uid_to_inner(&marketplace.id), Error_Not_Admin);
-        // Check if the withdrawal amount is valid
         assert!(amount > 0 && amount <= marketplace.balance.value(), Error_Invalid_WithdrawalAmount);
 
-        // Take the coin from the balance
         let take_coin = coin::take(&mut marketplace.balance, amount, ctx);
-
-        // Transfer the coin to the recipient
         transfer::public_transfer(take_coin, recipient);
 
-        // Emit the MarketplaceWithdrawal event
         event::emit(MarketplaceWithdrawal {
-            marketplace_id: object::uid_to_inner(&marketplace.id), // Set the marketplace ID
-            amount: amount, // Set the withdrawal amount
-            recipient: recipient // Set the recipient address
+            marketplace_id: object::uid_to_inner(&marketplace.id),
+            amount: amount,
+            recipient: recipient
         });
     }
 
     public fun deposit_to_marketplace(
-        marketplace: &mut Marketplace, // Mutable reference to the marketplace
+        marketplace: &mut Marketplace,
         coin_: Coin<SUI>,
     ) {
         marketplace.balance.join(coin::into_balance(coin_));
+
+        event::emit(MarketplaceWithdrawal {
+            marketplace_id: object::uid_to_inner(&marketplace.id),
+            amount: coin_::value(),
+            recipient: address(0) // Indicating deposit event
+        });
     }
 
-    // Getter function for marketplace details
     public fun get_marketplace_details(marketplace: &Marketplace) : (&Balance<SUI>, u64) {
         (
-            &marketplace.balance, // Return the marketplace balance
-            marketplace.job_count // Return the job count
+            &marketplace.balance,
+            marketplace.job_count
         )
     }
 
-    // Getter function for job details by job ID
     public fun get_job_details(marketplace: &Marketplace, job_id: u64) : (u64, String, String, u64, Url, bool, u8, u64, u64) {
-        // Get the job by ID
+        assert!(job_id < marketplace.jobs.length(), Error_Invalid_JobId);
         let job = &marketplace.jobs[job_id];
         (
-            job.id, // Return the job ID
-            job.title, // Return the job title
-            job.description, // Return the job description
-            job.price, // Return the job price
-            job.url, // Return the job URL
-            job.listed, // Return whether the job is listed
-            job.category, // Return the job category
-            job.total_supply, // Return the total supply of the job
-            job.available // Return the available quantity of the job
+            job.id,
+            job.title,
+            job.description,
+            job.price,
+            job.url,
+            job.listed,
+            job.category,
+            job.total_supply,
+            job.available
         )
     }
 
-    // Function to update the freelancer of an accepted job
     public fun update_accepted_job_freelancer(accepted_job: &mut JobAccepted, freelancer: address) {
-        // Update the freelancer address
         accepted_job.freelancer = freelancer;
     }
 
-    // === Test Functions ===
-    
-  
+    public fun add_feedback(
+        marketplace: &mut Marketplace,
+        job_id: u64,
+        rating: u8,
+        comments: vector<u8>,
+        ctx: &mut TxContext
+    ) {
+        assert!(job_id < marketplace.jobs.length(), Error_Invalid_JobId);
+        assert!(rating > 0 && rating <= 5, Error_Invalid_Quantity);
+
+        let feedback = Feedback {
+            job_id: job_id,
+            rating: rating,
+            comments: string::utf8(comments)
+        };
+
+        marketplace.feedbacks.push_back(feedback);
+
+        event::emit(JobFeedbackAdded {
+            job_id: job_id,
+            rating: rating,
+            comments: string::utf8(comments)
+        });
+    }
+
+    public fun get_feedback(marketplace: &Marketplace, job_id: u64) : (u64, u8, String) {
+        assert!(job_id < marketplace.feedbacks.length(), Error_Invalid_JobId);
+
+        let feedback = &marketplace.feedbacks[job_id];
+        (
+            feedback.job_id,
+            feedback.rating,
+            feedback.comments
+        )
+    }
 }
